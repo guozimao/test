@@ -34,5 +34,7 @@ CamelCase
 
 smart tomcat
 
+MybatisLogFormat
+
 idea社区的自动代码生成
 mybatis-generator-maven-plugin
