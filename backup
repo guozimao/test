@@ -83,6 +83,7 @@ git pull --rebase origin dev
 git stash 
 git stash pop 
 
+git log --pretty=oneline --graph 
 git log -p filename > search.txt
 gitk 
 
@@ -90,3 +91,4 @@ git diff commit_id1 commit_id2
 git difftool
 
 git merge xxxx --no-ff 
+git mergetool 
