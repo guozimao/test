@@ -77,6 +77,7 @@ git clone
 git checkout
 git checkout -b dev origin/dev
 git fetch
+git fetch --prune
 git branch -a 
 git status
 git add filename 
