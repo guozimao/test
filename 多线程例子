@@ -6,11 +6,9 @@
  * 機能概要
  * 商品画像加工
  *
- * @author LDI 劉
- *
  * </pre>
  ******************************************************************************/
-package jp.co.lawson.lds.store.hqa0001;
+package jp.co.lawson.xxxxx.store.hqa0001;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
