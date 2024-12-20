@@ -1,0 +1,339 @@
+/*******************************************************************************
+ * <pre>
+ * 機能名       : 商品画像加工
+ * プログラム名 : ProductImageProcessingApi
+ *
+ * 機能概要
+ * 商品画像加工
+ *
+ * @author LDI 劉
+ *
+ * </pre>
+ ******************************************************************************/
+package jp.co.lawson.lds.store.hqa0001;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import jp.co.lawson.lds.constant.Constant;
+import jp.co.lawson.lds.constant.MsgConst;
+import jp.co.lawson.lds.constant.WebMsgConst;
+import jp.co.lawson.lds.core.dto.ZipDto;
+import jp.co.lawson.lds.data.hqa0001.repository.ProductImageProcessingMapper;
+import jp.co.lawson.lds.store.dto.ImageUrlUpdateDto;
+import jp.co.lawson.lds.store.dto.ProductImageProcessingDto;
+import jp.co.lawson.lds.util.FileManager;
+import jp.co.lawson.lds.util.GyoumuLogWriter;
+import jp.co.lawson.lds.util.ZipManager;
+
+@Component
+@Transactional
+public class ProductImageProcessingApi {
+
+    /** ログ宣言 */
+    private GyoumuLogWriter logger = GyoumuLogWriter
+        .getInstance(ProductImageProcessingApi.class);
+
+    /** 商品画像加工 Mapper */
+    @Autowired
+    private ProductImageProcessingMapper productImageProcessingMapper;
+
+    /** Zip管理 */
+    @Autowired
+    private ZipManager zipManager;
+
+    /** ファイル管理 */
+    @Autowired
+    private FileManager fileManager;
+
+    /** 処理結果コード:正常終了 */
+    private final static String RETURN_CODE_NORMAL = "00";
+
+    /** 処理結果コード:ファイルチェックエラー */
+    private final static String RETURN_CODE_CHECKERR = "10";
+
+    /** 処理結果コード:異常終了 */
+    private final static String RETURN_CODE_ERROR = "99";
+
+    /** DB更新パターン:1 (申請_デリバリーPF別商品情報) */
+    private final static String UPDATE_PATTERN_ITEM = "1";
+
+    /** DB更新パターン:2 (オプションマスタ) */
+    private final static String UPDATE_PATTERN_OPTION = "2";
+
+    /** 保存キー:KEY_PF_ITEM (申請_デリバリーPF別商品情報) */
+    private final static String KEY_PF_ITEM = "APPLICATED_DELIVERY_PF_ITEM";
+
+    /** 保存キー:KEY_OPTION_ITEM (申請_デリバリーPF別商品情報) */
+    private final static String KEY_OPTION_ITEM = "OPTION_ITEM";
+
+    /** エラーメッセージ: */
+    private final static String MESSAGE_ERROR =
+            "商品情報（申請中）とオプション情報から対象の撮影依頼No";
+
+    /** S3URL */
+    @Value("${S3URL}")
+    private String s3Url;
+
+    /** S3URL(CDN) */
+    @Value("${S3CDN}")
+    private String s3Cdn;
+
+    /** サイズ2のスレッドプールを作成する */
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+    /**
+     * 主処理
+     *
+     * @param zipFile 商品画像ファイル
+     * @param userId ユーザーID
+     * @return 処理結果
+     */
+    public ProductImageProcessingDto doProcess(byte[] zipFile, String userId) {
+        // 処理結果初期化
+        ProductImageProcessingDto resultDto = new ProductImageProcessingDto();
+        // 処理結果コード
+        resultDto.setReturnCode(RETURN_CODE_NORMAL);
+        logger.putLog("CS41_0041I", new String[] {"圧縮ファイル解凍・存在チェック処理", "開始","" });
+        // 商品画像ファイルを解凍する
+        List<ZipDto> imgfileList = zipManager.doUnzip(zipFile);
+        logger.putLog("CS41_0041I", new String[] {"圧縮ファイル解凍・存在チェック処理", "終了","" });
+        // 撮影依頼Noデータ保存用マップ
+        Map<String, Map<String, List<String>>> shootingOrderNoMap =
+                new HashMap<String, Map<String, List<String>>>();
+        // 各画像ファイル名の撮影依頼Noの存在チェック
+        shootingOrderNoMap = zipFileCheck(imgfileList, resultDto);
+        // チェックエラーの場合
+        if (!StringUtils.equals(RETURN_CODE_NORMAL,
+                resultDto.getReturnCode())) {
+            return resultDto;
+        }
+        // 処理結果2初期化（スレッド用）
+        ProductImageProcessingDto resultDto2 = new ProductImageProcessingDto();
+        // 処理結果2コード（存在チェックOKの場合はreturnCodeしか設定されない）
+        resultDto2.setReturnCode(RETURN_CODE_NORMAL);
+
+        // スレッド１用
+        Map<String, List<String>> map1 = shootingOrderNoMap.get(KEY_PF_ITEM);
+        // スレッド２用
+        Map<String, List<String>> map2 = shootingOrderNoMap.get(KEY_OPTION_ITEM);
+
+        // 画像ファイル処理(申請_デリバリーPF別商品情報用)
+        // CompletableFuture を使って並行処理を行う
+        CompletableFuture<Void> processItemFuture = CompletableFuture.runAsync(() -> {
+            imgFileProcess(imgfileList, map1, resultDto, userId, UPDATE_PATTERN_ITEM);
+        }, executorService);
+        // 画像ファイル処理(オプションマスタ用)
+        CompletableFuture<Void> processOptionFuture = CompletableFuture.runAsync(() -> {
+            imgFileProcess(imgfileList, map2, resultDto2, userId, UPDATE_PATTERN_OPTION);
+        }, executorService);
+
+        // 全てのタスクが完了するのを待つ
+        CompletableFuture.allOf(processItemFuture, processOptionFuture).join();
+        if (!StringUtils.equals(RETURN_CODE_NORMAL,
+                resultDto2.getReturnCode())) {
+            return resultDto2;
+        }
+        logger.putLog("CS41_0041I", new String[] {"結果返却", "終了","" });
+        return resultDto;
+    }
+
+    /**
+     * 各画像ファイル名の撮影依頼Noの存在チェック
+     *
+     * @param imgfileList 画像ファイルリスト
+     * @param resultDto 画像ファイル処理結果DTO
+     * @return 撮影依頼Noのデータ
+     */
+    private Map<String, Map<String, List<String>>> zipFileCheck(
+            List<ZipDto> imgfileList,
+            ProductImageProcessingDto resultDto) {
+        // 撮影依頼Noのデータ(申請_デリバリーPF別商品情報用)
+        Map<String, List<String>> shootingOrderNoMapForPfItem =
+                new HashMap<String, List<String>>();
+        // 撮影依頼Noのデータ(オプションマスタ用)
+        Map<String, List<String>> shootingOrderNoMapForOption =
+                new HashMap<String, List<String>>();
+        // 撮影依頼Noのデータ
+        Map<String, Map<String, List<String>>> shootingOrderNoMap =
+                new HashMap<String, Map<String, List<String>>>();
+        // 解凍したファイルのチェックを行う
+        Map<String, Map<String, String>> checkResult = fileManager
+            .zipFileCheck(imgfileList);
+        logger.putLog("CS41_0041I", new String[] {"画像ファイル名チェック（ファイル数分ループ）", "開始","" });
+        logger.putLog("CS41_0041I", new String[] {"撮影依頼Noの商品情報mapとオプションmap作成", "開始","" });
+        // エラーがない場合
+        if (checkResult.containsKey(Constant.ZipCheckResult.FLAG_NORMAL)) {
+            for (ZipDto imgfile : imgfileList) {
+                // 画像ファイル名から撮影依頼Noを取得する
+                String shootingOrderNo = StringUtils.substring(
+                        imgfile.getName(), 0,
+                        StringUtils.indexOf(imgfile.getName(), "."));
+                // 各画像ファイル名の撮影依頼Noが商品登録されているかチェック
+                List<String> infoDtoList = productImageProcessingMapper
+                    .getShootingOrderNoInfo(shootingOrderNo);
+                // 各画像ファイル名の撮影依頼Noが商品登録されているかチェック
+                List<String> infoDtoListFromOption =
+                        productImageProcessingMapper
+                            .getShootingOrderNoInfoFromOption(shootingOrderNo);
+                // カウント数＝0 時、メッセージIDを設定し、処理終了させる。
+                if (infoDtoList.size() == 0 && infoDtoListFromOption.size() == 0) {
+                    // 終了コード
+                    resultDto.setReturnCode(RETURN_CODE_CHECKERR);
+                    // メッセージID設定(WHQ015)
+                    resultDto.setMessageID(
+                            WebMsgConst.MESSAGEID_WARN_NO_DATA);
+                    // メッセージパラメータ設定
+                    resultDto.setMsgParam(MESSAGE_ERROR);
+
+                    break;
+                } else {
+                    // 撮影依頼Noのデータを設定する
+                    shootingOrderNoMapForPfItem.put(shootingOrderNo,
+                            infoDtoList);
+                    // 撮影依頼Noのデータを設定する
+                    shootingOrderNoMapForOption.put(shootingOrderNo,
+                            infoDtoListFromOption);
+                }
+
+            }
+            shootingOrderNoMap.put(KEY_PF_ITEM, shootingOrderNoMapForPfItem);
+            shootingOrderNoMap.put(KEY_OPTION_ITEM,
+                    shootingOrderNoMapForOption);
+            // エラーがある場合
+        } else {
+            // メッセージID取得
+            Map<String, String> msgMap = checkResult
+                .get(Constant.ZipCheckResult.FLAG_ANONMALY);
+            // 存在チェック：解凍したファイルbyte配列が０バイトではない
+            if (msgMap.containsKey(WebMsgConst.MESSAGEID_WARN_FILE_SIZE_ZERO)) {
+                // メッセージID設定(WHQ010)
+                resultDto.setMessageID(
+                        WebMsgConst.MESSAGEID_WARN_FILE_SIZE_ZERO);
+                // ログ出力
+                logger.putLog(MsgConst.MESSAGEID_FILE_NONE);
+                // 拡張子チェック：解凍したファイルの拡張子は「.jpg」または「.jpeg」ではない
+            } else {
+                // メッセージID設定(WHQ008)
+                resultDto.setMessageID(WebMsgConst.MESSAGEID_WARN_FILE_SUFFIX);
+                resultDto.setMsgParam(".jpg」または「.jpeg");
+                // ログ出力
+                logger.putLog(MsgConst.MESSAGEID_EXTENSION_ERROR);
+            }
+            // 終了コード
+            resultDto.setReturnCode(RETURN_CODE_CHECKERR);
+        }
+        logger.putLog("CS41_0041I", new String[] {"画像ファイル名チェック（ファイル数分ループ）", "終了","" });
+        logger.putLog("CS41_0041I", new String[] {"撮影依頼Noの商品情報mapとオプションmap作成", "終了","" });
+        return shootingOrderNoMap;
+    }
+
+    /**
+     * 画像ファイル処理
+     *
+     * @param imgfileList 画像ファイルリスト
+     * @param shootingOrderNoMap 撮影依頼Noマップ
+     * @param resultDto 画像ファイル処理結果DTO
+     * @param userId ユーザーID
+     * @param patternId DB更新パターン
+     */
+    private void imgFileProcess(List<ZipDto> imgfileList,
+            Map<String, List<String>> shootingOrderNoMap,
+            ProductImageProcessingDto resultDto, String userId,
+            String patternId) {
+        logger.putLog("CS41_0041I", new String[] {"画像リサイズ、ファイル名の命名処理（商品情報mapとオプションmap分ループ）", "開始","" });
+        try {
+            for (ZipDto imgfile : imgfileList) {
+                // 画像ファイル名から撮影依頼Noを取得する
+                String shootingOrderNo = StringUtils.substring(
+                        imgfile.getName(), 0,
+                        StringUtils.indexOf(imgfile.getName(), "."));
+                // 撮影依頼NoのデリバリーPFIDデータを取得する
+                for (String pfId : shootingOrderNoMap.get(shootingOrderNo)) {
+
+
+                    // 「撮影依頼No_PFコード_登録日時(yyyymmddhhmmss)」で画像ファイル名を命名する
+                    Date now = LocalDateTime.now().toDate();
+                    String sysDateString = new SimpleDateFormat(
+                            Constant.DateFormat.YEAR_MONTH_DAY_HOUR_AND_SECOND)
+                                .format(now);
+                    String newImgName = shootingOrderNo + "_" + pfId + "_"
+                            + sysDateString;
+
+                    int newWidth = 0;
+                    int newHeight = 0;
+
+                    // Uberの規定サイズ
+                    if (StringUtils.equals(pfId, "0")) {
+                        newWidth = 550;
+                        newHeight = 440;
+                        // Woltの規定サイズ
+                    } else if (StringUtils.equals(pfId, "1")) {
+                        newWidth = 1440;
+                        newHeight = 810;
+                        // menuの規定サイズ
+                    } else if (StringUtils.equals(pfId, "2")) {
+                        newWidth = 1200;
+                        newHeight = 800;
+                        // 出前館の規定サイズ
+                    } else if (StringUtils.equals(pfId, "3")) {
+                        newWidth = 1280;
+                        newHeight = 1280;
+                    }
+                    // 画像をリサイズする
+                    ZipDto reSizeNamefile = fileManager.reSizeName(imgfile,
+                            newHeight, newWidth, newImgName);
+                    // プロパティのS3url
+                    String filePath = s3Url + reSizeNamefile.getName();
+
+                    // S3APIを呼び出す
+                    fileManager.fileUpload(reSizeNamefile, filePath);
+                    // プロパティのS3CDN
+                    String filePathCdn = s3Cdn + reSizeNamefile.getName();
+                    // S3APIを呼び出す
+                    fileManager.fileUpload(reSizeNamefile, filePathCdn);
+                    ImageUrlUpdateDto imageUrlUpdateDto =
+                            new ImageUrlUpdateDto();
+                    // デリバリーPFID
+                    imageUrlUpdateDto.setPfId(pfId);
+                    // 撮影依頼Noのカウント
+                    imageUrlUpdateDto.setShootingOrderNo(shootingOrderNo);
+                    // 商品画像URL
+                    imageUrlUpdateDto.setImageUrl(filePath);
+                    // ユーザーID
+                    imageUrlUpdateDto.setUpdatedBy(userId);
+                    // 作成した画像パスを申請_デリバリーPF別商品情報に登録する
+                    if (UPDATE_PATTERN_ITEM.equals(patternId)) {
+                        int updCnt = productImageProcessingMapper
+                            .updateImageUrl(imageUrlUpdateDto);
+                        // 作成した画像パスをオプションマスタに登録する
+                    } else if (UPDATE_PATTERN_OPTION
+                        .equals(patternId)) {
+                        int updCnt = productImageProcessingMapper
+                            .updateImageUrlForOption(
+                                    imageUrlUpdateDto);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ログ出力
+            logger.putLog(MsgConst.MESSAGEID_SYSTEM_ERROR);
+            // 終了コード
+            resultDto.setReturnCode(RETURN_CODE_ERROR);
+        }
+        logger.putLog("CS41_0041I", new String[] {"画像リサイズ、ファイル名の命名処理（商品情報mapとオプションmap分ループ）", "終了","" });
+    }
+}
