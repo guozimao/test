@@ -4,6 +4,9 @@ cd C:\Users\Ｚ\helpfile\pythonspace\manga-ocr-master\manga_ocr
 //执行命令后，识别剪切板中的图片内容后，转换成文字，可以粘贴到其他地方
 python run.py
 
+一つまとめ
+python C:\Users\Ｚ\helpfile\pythonspace\manga-ocr-master\manga_ocr\run.py
+
 ------------------------------------------------------------------
 
 字幕
