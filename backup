@@ -189,3 +189,24 @@ less [-[efmMX]] [options] [files]
 
 再配合 输出色阶（在“色阶 Levels”里，把右边白色三角从 255 拉到 240 左右），可以让“刺眼的纯白”变成“柔和灰白”。
 ---实际值设置为222
+
+------------------------------------------------------------------------------------------
+
+goldendict-ng中anki-connect的配置
+
+ホスト:http://127.0.0.1  ポート:8763
+デッキ:日本语生词本　モデル:Basic (and reversed card)
+単語:Front
+テキスト:Back
+
+anki中anki-connect的配置
+{
+    "apiKey": null,
+    "apiLogPath": null,
+    "ignoreOriginList": [],
+    "webBindAddress": "127.0.0.1",
+    "webBindPort": 8763,
+    "webCorsOriginList": [
+        "http://localhost"
+    ]
+}
