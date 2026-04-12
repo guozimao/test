@@ -1,3 +1,129 @@
 マイナポータルとe-tax
 利用者識別番号
 1568 0221 0293 1052
+
+ヤマト運輸
+id LW3BU4ZV
+
+-------------------------
+
+tradingView
+
+Pine
+--------------------------------------------------------
+//@version=5
+indicator("纳指分级加仓系统（高阶升级版 + 区间跌幅）", overlay=true)
+
+// =====================
+// 📌 参数
+// =====================
+rsiLen      = 14
+rsiOS       = input.int(35, "RSI 超卖")
+maShortLen  = input.int(20, "短期MA")
+maLongLen   = input.int(100, "长期MA")
+devPct      = input.float(5, "偏离阈值(%)")
+
+scoreMainBase = input.float(2.5, "主信号基础阈值")
+scoreAddBase  = input.float(1.5, "次信号基础阈值")
+
+// 区间跌幅的指定区间
+startTime = input.time(timestamp("2026-01-01 00:00"), "开始日期")
+endTime   = input.time(timestamp("2026-12-31 00:00"), "结束日期")
+
+// =====================
+// 📊 数据
+// =====================
+dailyClose = request.security(syminfo.tickerid, "D", close)
+rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
+maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
+maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
+
+devFromMA = (dailyClose - maShort) / maShort * 100
+dailyPct  = (dailyClose - dailyClose[1]) / dailyClose[1] * 100
+
+// =====================
+// 🧠 市场状态
+// =====================
+bull = dailyClose > maLong
+bear = dailyClose < maLong
+// 状态调节
+scoreMain = bull ? scoreMainBase : scoreMainBase - 0.5
+scoreAdd  = bull ? scoreAddBase  : scoreAddBase - 0.3
+
+// =====================
+// 🎯 评分系统
+// =====================
+score = 0.0
+// RSI（轻权重）
+score += (rsiVal <= rsiOS ? 1.0 : 0.0)
+score += (rsiVal <= 25 ? 0.5 : 0.0)
+// 偏离MA
+score += (devFromMA <= -devPct ? 1.0 : 0.0)
+score += (devFromMA <= -8 ? 0.5 : 0.0)
+// 短期恐慌
+score += (dailyPct <= -2 ? 1.0 : 0.0)
+// 熊市加权（更容易出现机会）
+score += bear ? 0.3 : 0.0
+
+// =====================
+// 🎯 信号
+// =====================
+condMain = score >= scoreMain
+condAdd  = score >= scoreAdd and score < scoreMain
+
+// =====================
+// 区间累计跌幅计算
+// =====================
+dailyTime = request.security(syminfo.tickerid, "D", time)
+inRange = (dailyTime >= startTime and dailyTime <= endTime)
+
+// 区间内最高价
+var float peakPrice = na
+
+if inRange
+    peakPrice := na(peakPrice) ? dailyClose : math.max(peakPrice, dailyClose)
+
+// 当前回撤%
+drawdownPct = (dailyClose - peakPrice) / peakPrice * 100
+
+// =====================
+// 📡 趋势提示
+// =====================
+condTrendHint = ta.crossover(dailyClose, maShort)
+
+// =====================
+// 🎨 输出
+// =====================
+plotshape(condMain,
+     title="主信号",
+     location=location.belowbar,
+     color=color.red,
+     style=shape.triangleup,
+     size=size.large,
+     text="BUY")
+
+plotshape(condAdd,
+     title="次信号",
+     location=location.belowbar,
+     color=color.yellow,
+     style=shape.circle,
+     size=size.small,
+     text="ADD")
+
+plotshape(condTrendHint,
+     title="趋势转强提示",
+     location=location.abovebar,
+     color=color.gray,
+     style=shape.triangledown,
+     size=size.small,
+     text="UP")
+
+plot(maShort, "MA20", color=color.orange)
+plot(maLong, "MA100", color=color.blue)
+
+plot(score, title="Score", color=color.white)
+
+// 输出区间跌幅
+plot(drawdownPct, "区间累计跌幅%", color=color.red, linewidth=2)
+
+-------------------------------------------------------
