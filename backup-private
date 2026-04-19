@@ -2,6 +2,9 @@
 利用者識別番号
 1568 0221 0293 1052
 
+e-iDeCoサービス
+https://portal.e-shishobako.ne.jp/dp_apl/pw-usr/#/portal/landing?riyoCd=RPE0342000
+
 ヤマト運輸
 id LW3BU4ZV
 
@@ -87,9 +90,67 @@ if inRange
 drawdownPct = (dailyClose - peakPrice) / peakPrice * 100
 
 // =====================
-// 📡 趋势提示
+// 🚀 纳指极简机构持有系统（升级版）
 // =====================
-condTrendHint = ta.crossover(dailyClose, maShort)
+
+// ===== 趋势结构 =====
+trendUp = maShort > maLong and dailyClose > maLong
+trendDown = maShort < maLong
+
+// ===== 长期新高 =====
+var float peakPrice2 = na
+if na(peakPrice2)
+    peakPrice2 := dailyClose
+else
+    peakPrice2 := math.max(peakPrice2, dailyClose)
+
+// ===== 回撤（唯一核心风险变量）=====
+drawdown = (dailyClose - peakPrice2) / peakPrice2 * 100
+
+// =====================
+// 🧠 仓位系统（核心逻辑）
+// =====================
+
+var float position = 1.0
+
+// 🟢 正常牛市（默认满仓）
+if trendUp
+    position := 1.0
+
+    // 轻度回撤（允许波动）
+    if drawdown < -8
+        position := 0.8
+
+    // 中度回撤（风险上升）
+    if drawdown < -12
+        position := 0.6
+
+    // 深度回撤（保护资本）
+    if drawdown < -18
+        position := 0.4
+
+// 🔴 趋势破坏（真正减仓）
+if trendDown
+    position := 0.3
+
+// 🔥 极端风险（快速暴跌）
+panic = ta.change(dailyClose, 3) / dailyClose[3] * 100 < -6
+if panic
+    position := 0.2
+
+// =====================
+// 🧊 稳定器（防抖动）
+// =====================
+var int lastChange = na
+canChange = na(lastChange) or (bar_index - lastChange > 15)
+
+newPos = position
+changed = math.abs(newPos - position) >= 0.1
+
+if canChange and changed
+    position := newPos
+    lastChange := bar_index
+
 
 // =====================
 // 🎨 输出
@@ -110,18 +171,19 @@ plotshape(condAdd,
      size=size.small,
      text="ADD")
 
-plotshape(condTrendHint,
-     title="趋势转强提示",
+plotshape(trendDown,
+     title="趋势破坏",
      location=location.abovebar,
      color=color.gray,
      style=shape.triangledown,
      size=size.small,
-     text="UP")
+     text="RISK")
 
 plot(maShort, "MA20", color=color.orange)
 plot(maLong, "MA100", color=color.blue)
 
-plot(score, title="Score", color=color.white)
+plot(position * 100, title="仓位%", color=color.white, linewidth=2)
+plot(score, title="Score", color=color.green)
 
 // 输出区间跌幅
 plot(drawdownPct, "区间累计跌幅%", color=color.red, linewidth=2)
