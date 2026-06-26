@@ -40,15 +40,14 @@ indicator("纳指分级加仓系统（高阶升级版 + 区间跌幅）", overla
 rsiLen      = 14
 rsiOS       = input.int(35, "RSI 超卖")
 maShortLen  = input.int(20, "短期MA")
+maMidLen  = input.int(50, "中期MA")
 maLongLen   = input.int(100, "长期MA")
 devPct      = input.float(5, "偏离阈值(%)")
+atrLength = input.int(20, "ATR Length")
+atrMult   = input.float(2.5, "ATR Mult")
 
 scoreMainBase = input.float(2.5, "主信号基础阈值")
 scoreAddBase  = input.float(1.5, "次信号基础阈值")
-
-// 区间跌幅的指定区间
-startTime = input.time(timestamp("2026-01-01 00:00"), "开始日期")
-endTime   = input.time(timestamp("2026-12-31 00:00"), "结束日期")
 
 // =====================
 // 📊 数据
@@ -56,7 +55,24 @@ endTime   = input.time(timestamp("2026-12-31 00:00"), "结束日期")
 dailyClose = request.security(syminfo.tickerid, "D", close)
 rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
 maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
+maMid      = request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
 maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
+
+// 成交量
+vol = volume
+
+// 均量
+vol5  = ta.sma(vol, 5)
+vol10 = ta.sma(vol, 10)
+vol20 = ta.sma(vol, 20)
+
+// ATR
+atrValue = ta.atr(atrLength)
+
+// 20日新高
+highestHigh = ta.highest(high, 20)
+// 价格10日新低
+lowestLow = ta.lowest(low, 10)
 
 devFromMA = (dailyClose - maShort) / maShort * 100
 dailyPct  = (dailyClose - dailyClose[1]) / dailyClose[1] * 100
@@ -92,81 +108,21 @@ condMain = score >= scoreMain
 condAdd  = score >= scoreAdd and score < scoreMain
 
 // =====================
-// 区间累计跌幅计算
+// 放量分级标记（短期 / 中期 / 明显放量）
 // =====================
-dailyTime = request.security(syminfo.tickerid, "D", time)
-inRange = (dailyTime >= startTime and dailyTime <= endTime)
+// 放量条件（分级）
+strongVol = vol > vol20 * 1.5     // 明显放量（强）
+midVol    = vol > vol10           // 中期放量
+shortVol  = vol > vol5            // 短期放量
 
-// 区间内最高价
-var float peakPrice = na
+// 优先级显示：强 > 中 > 短 > 无
+showStrong = strongVol
+showMid    = not strongVol and midVol
+showShort  = not strongVol and not midVol and shortVol
 
-if inRange
-    peakPrice := na(peakPrice) ? dailyClose : math.max(peakPrice, dailyClose)
+// ATR止损值
+stopVal = close - (atrValue * atrMult)
 
-// 当前回撤%
-drawdownPct = (dailyClose - peakPrice) / peakPrice * 100
-
-// =====================
-// 🚀 纳指极简机构持有系统（升级版）
-// =====================
-
-// ===== 趋势结构 =====
-trendUp = maShort > maLong and dailyClose > maLong
-trendDown = maShort < maLong
-
-// ===== 长期新高 =====
-var float peakPrice2 = na
-if na(peakPrice2)
-    peakPrice2 := dailyClose
-else
-    peakPrice2 := math.max(peakPrice2, dailyClose)
-
-// ===== 回撤（唯一核心风险变量）=====
-drawdown = (dailyClose - peakPrice2) / peakPrice2 * 100
-
-// =====================
-// 🧠 仓位系统（核心逻辑）
-// =====================
-
-var float position = 1.0
-
-// 🟢 正常牛市（默认满仓）
-if trendUp
-    position := 1.0
-
-    // 轻度回撤（允许波动）
-    if drawdown < -8
-        position := 0.8
-
-    // 中度回撤（风险上升）
-    if drawdown < -12
-        position := 0.6
-
-    // 深度回撤（保护资本）
-    if drawdown < -18
-        position := 0.4
-
-// 🔴 趋势破坏（真正减仓）
-if trendDown
-    position := 0.3
-
-// 🔥 极端风险（快速暴跌）
-panic = ta.change(dailyClose, 3) / dailyClose[3] * 100 < -6
-if panic
-    position := 0.2
-
-// =====================
-// 🧊 稳定器（防抖动）
-// =====================
-var int lastChange = na
-canChange = na(lastChange) or (bar_index - lastChange > 15)
-
-newPos = position
-changed = math.abs(newPos - position) >= 0.1
-
-if canChange and changed
-    position := newPos
-    lastChange := bar_index
 
 
 // =====================
@@ -188,22 +144,41 @@ plotshape(condAdd,
      size=size.small,
      text="ADD")
 
-plotshape(trendDown,
-     title="趋势破坏",
+plotshape(showStrong,
+     title="明显放量（强）",
      location=location.abovebar,
      color=color.gray,
      style=shape.triangledown,
      size=size.small,
-     text="RISK")
+     text="L↑")
+
+plotshape(showMid,
+     title="中期放量",
+     location=location.abovebar,
+     color=color.gray,
+     style=shape.triangledown,
+     size=size.small,
+     text="M↑")
+
+plotshape(showShort,
+     title="短期放量",
+     location=location.abovebar,
+     color=color.gray,
+     style=shape.triangledown,
+     size=size.small,
+     text="S↑")
 
 plot(maShort, "MA20", color=color.orange)
+plot(maMid, "MA50", color=color.yellow)
 plot(maLong, "MA100", color=color.blue)
 
-plot(position * 100, title="仓位%", color=color.white, linewidth=2)
-plot(score, title="Score", color=color.green)
 
-// 输出区间跌幅
-plot(drawdownPct, "区间累计跌幅%", color=color.red, linewidth=2)
+plot(stopVal, title="ATR止损", color=color.white)
+//plot(vol, title="交易量", color=color.white)
+
+plot(highestHigh, title="价格20日新高", color=color.green)
+plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
+
 
 -------------------------------------------------------
 
