@@ -24,6 +24,7 @@ wise
 
 在留卡
 hucyw14674
+*123@guozimaO*
 
 -------------------------
 
@@ -32,7 +33,7 @@ tradingView
 Pine
 --------------------------------------------------------
 //@version=5
-indicator("纳指分级加仓系统（高阶升级版 + 区间跌幅）", overlay=true)
+indicator("分析图", overlay=true)
 
 // =====================
 // 📌 参数
@@ -54,9 +55,9 @@ scoreAddBase  = input.float(1.5, "次信号基础阈值")
 // =====================
 dailyClose = request.security(syminfo.tickerid, "D", close)
 rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
-maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
-maMid      = request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
-maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
+maShort    = request.security(syminfo.tickerid, "D", ta.ema(close, maShortLen))
+maMid      = request.security(syminfo.tickerid, "D", ta.ema(close, maMidLen))
+maLong     = request.security(syminfo.tickerid, "D", ta.ema(close, maLongLen))
 
 // 成交量
 vol = volume
@@ -123,6 +124,12 @@ showShort  = not strongVol and not midVol and shortVol
 // ATR止损值
 stopVal = close - (atrValue * atrMult)
 
+// RSI观察区
+rsiObserve = rsiVal >= 35 and rsiVal <= 45
+
+// RSI超买区
+rsiOverStrong = rsiVal >= 70
+
 
 
 // =====================
@@ -170,14 +177,26 @@ plotshape(showShort,
 
 plot(maShort, "MA20", color=color.orange)
 plot(maMid, "MA50", color=color.yellow)
-plot(maLong, "MA100", color=color.blue)
-
+//plot(maLong, "MA100", color=color.blue)
+//plot(rsiVal, "RSI", color=color.blue)
 
 plot(stopVal, title="ATR止损", color=color.white)
 //plot(vol, title="交易量", color=color.white)
 
 plot(highestHigh, title="价格20日新高", color=color.green)
 plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
+
+if rsiObserve
+    label.new(bar_index, low - 1.5,
+     str.tostring(rsiVal, "#.0"),
+     textcolor=color.orange,
+     style=label.style_none)
+
+if rsiOverStrong
+    label.new(bar_index, high,
+         str.tostring(rsiVal, "#.0"),
+         textcolor=color.red,
+         style=label.style_none)
 
 
 -------------------------------------------------------
