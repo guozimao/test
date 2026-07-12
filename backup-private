@@ -40,6 +40,7 @@ indicator("分析图", overlay=true)
 // =====================
 rsiLen      = 14
 rsiOS       = input.int(35, "RSI 超卖")
+maFastLen   = input.int(5, "快速MA")
 maShortLen  = input.int(20, "短期MA")
 maMidLen  = input.int(50, "中期MA")
 maLongLen   = input.int(100, "长期MA")
@@ -55,6 +56,7 @@ scoreAddBase  = input.float(1.5, "次信号基础阈值")
 // =====================
 dailyClose = request.security(syminfo.tickerid, "D", close)
 rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
+maFast  = request.security(syminfo.tickerid, "D", ta.ema(close, maFastLen))
 maShort    = request.security(syminfo.tickerid, "D", ta.ema(close, maShortLen))
 maMid      = request.security(syminfo.tickerid, "D", ta.ema(close, maMidLen))
 maLong     = request.security(syminfo.tickerid, "D", ta.ema(close, maLongLen))
@@ -77,6 +79,9 @@ lowestLow = ta.lowest(low, 10)
 
 devFromMA = (dailyClose - maShort) / maShort * 100
 dailyPct  = (dailyClose - dailyClose[1]) / dailyClose[1] * 100
+
+// 偏离5日EMA（%）
+devFromMA5 = (dailyClose - maFast) / maFast * 100
 
 // =====================
 // 🧠 市场状态
@@ -175,13 +180,12 @@ plotshape(showShort,
      size=size.small,
      text="S↑")
 
-plot(maShort, "MA20", color=color.orange)
-plot(maMid, "MA50", color=color.yellow)
+plot(maFast, "MA5", color=color.white)
+//plot(maShort, "MA20", color=color.orange)
+//plot(maMid, "MA50", color=color.yellow)
 //plot(maLong, "MA100", color=color.blue)
-//plot(rsiVal, "RSI", color=color.blue)
 
-plot(stopVal, title="ATR止损", color=color.white)
-//plot(vol, title="交易量", color=color.white)
+//plot(stopVal, title="ATR止损", color=color.white)
 
 plot(highestHigh, title="价格20日新高", color=color.green)
 plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
@@ -196,6 +200,14 @@ if rsiOverStrong
     label.new(bar_index, high,
          str.tostring(rsiVal, "#.0"),
          textcolor=color.red,
+         style=label.style_none)
+
+if devFromMA5 > 0
+    label.new(
+         bar_index,
+         low - 10,
+         str.tostring(devFromMA5, "#.1") + "%",
+         textcolor=color.white,
          style=label.style_none)
 
 
