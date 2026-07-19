@@ -33,7 +33,7 @@ tradingView
 Pine
 --------------------------------------------------------
 //@version=5
-indicator("分析图", overlay=true)
+indicator("日线分析图", overlay=true)
 
 // =====================
 // 📌 参数
@@ -57,9 +57,9 @@ scoreAddBase  = input.float(1.5, "次信号基础阈值")
 dailyClose = request.security(syminfo.tickerid, "D", close)
 rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
 maFast  = request.security(syminfo.tickerid, "D", ta.ema(close, maFastLen))
-maShort    = request.security(syminfo.tickerid, "D", ta.ema(close, maShortLen))
-maMid      = request.security(syminfo.tickerid, "D", ta.ema(close, maMidLen))
-maLong     = request.security(syminfo.tickerid, "D", ta.ema(close, maLongLen))
+maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
+maMid      = request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
+maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
 
 // 成交量
 vol = volume
@@ -82,6 +82,9 @@ dailyPct  = (dailyClose - dailyClose[1]) / dailyClose[1] * 100
 
 // 偏离5日EMA（%）
 devFromMA5 = (dailyClose - maFast) / maFast * 100
+
+// 偏离50日EMA（%）
+devFromMA50 = (dailyClose - maMid) / maMid * 100
 
 // =====================
 // 🧠 市场状态
@@ -181,11 +184,11 @@ plotshape(showShort,
      text="S↑")
 
 plot(maFast, "MA5", color=color.white)
-//plot(maShort, "MA20", color=color.orange)
-//plot(maMid, "MA50", color=color.yellow)
+plot(maShort, "MA20", color=color.orange)
+plot(maMid, "MA50", color=color.yellow)
 //plot(maLong, "MA100", color=color.blue)
 
-//plot(stopVal, title="ATR止损", color=color.white)
+plot(stopVal, title="ATR止损", color=color.blue)
 
 plot(highestHigh, title="价格20日新高", color=color.green)
 plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
@@ -209,6 +212,37 @@ if devFromMA5 > 0
          str.tostring(devFromMA5, "#.1") + "%",
          textcolor=color.white,
          style=label.style_none)
+
+
+-------------------------------------------------------
+
+//@version=5
+indicator("周线分析图", overlay=true)
+
+// =====================
+// 📌 参数
+// =====================
+
+maShortLen  = input.int(5, "短期MA")
+maMidLen  = input.int(20, "中期MA")
+
+// =====================
+// 📊 数据
+// =====================
+dailyClose = request.security(syminfo.tickerid, "W", close)
+maShort    = request.security(syminfo.tickerid, "W", ta.sma(close, maShortLen))
+maMid      = request.security(syminfo.tickerid, "W", ta.sma(close, maMidLen))
+
+
+// 偏离20周EMA（%）
+devFromMA20 = (dailyClose - maMid) / maMid * 100
+
+
+plot(maShort, "MA5", color=color.white)
+plot(maMid, "MA20", color=color.yellow)
+
+if devFromMA20 > 0
+    label.new(bar_index,high,str.tostring(devFromMA20, "#.1") + "%",textcolor=color.white,style=label.style_none)
 
 
 -------------------------------------------------------
