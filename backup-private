@@ -44,6 +44,7 @@ maFastLen   = input.int(5, "快速MA")
 maShortLen  = input.int(20, "短期MA")
 maMidLen  = input.int(50, "中期MA")
 maLongLen   = input.int(100, "长期MA")
+maWeekLen = input.int(5, "5周均线")
 devPct      = input.float(5, "偏离阈值(%)")
 atrLength = input.int(14, "ATR Length")
 atrMult   = input.float(2.0, "ATR Mult")
@@ -60,6 +61,8 @@ maFast  = request.security(syminfo.tickerid, "D", ta.ema(close, maFastLen))
 maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
 maMid      = request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
 maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
+// 5周均线（日线图调用周线数据）
+ma5Week = request.security(syminfo.tickerid, "W", ta.sma(close, maWeekLen))
 
 // ATR
 atrValue = ta.atr(atrLength)
@@ -139,32 +142,33 @@ plotshape(condAdd,
      text="ADD")
 
 plot(maFast, "MA5", color=color.white)
+plot(ma5Week, "5周均线", color=color.purple, linewidth=2)
 //plot(maShort, "MA20", color=color.orange)
 //plot(maMid, "MA50", color=color.yellow)
 //plot(maLong, "MA100", color=color.blue)
 
 plot(stopVal, title="ATR止损", color=color.blue)
 
-plot(highestHigh, title="价格20日新高", color=color.green)
-plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
+//plot(highestHigh, title="价格20日新高", color=color.green)
+//plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
 
 if rsiObserve
-    label.new(bar_index, low - 1.5,
+    label.new(bar_index, low - low * 0.02,
      str.tostring(rsiVal, "#.0"),
      textcolor=color.orange,
      style=label.style_none)
 
 if rsiOverStrong
-    label.new(bar_index, high,
+    label.new(bar_index, low - low * 0.02,
          str.tostring(rsiVal, "#.0"),
          textcolor=color.red,
          style=label.style_none)
 
-if devFromMA5 > 0
+if devFromMA50 > 0
     label.new(
          bar_index,
-         high + 5,
-         str.tostring(devFromMA5, "#.1") + "%",
+         high,
+         str.tostring(devFromMA50, "#.1") + "%",
          textcolor=color.white,
          style=label.style_none)
 
