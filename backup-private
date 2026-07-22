@@ -44,33 +44,31 @@ maFastLen   = input.int(5, "快速MA")
 maShortLen  = input.int(20, "短期MA")
 maMidLen  = input.int(50, "中期MA")
 maLongLen   = input.int(100, "长期MA")
-maWeekLen = input.int(5, "5周均线")
 devPct      = input.float(5, "偏离阈值(%)")
 atrLength = input.int(14, "ATR Length")
 atrMult   = input.float(2.0, "ATR Mult")
 
+maFastWeekLen = input.int(5, "5周均线")
+maShortWeekLen = input.int(10, "10周均线")
+maMidWeekLen = input.int(20, "20周均线")
+
 scoreMainBase = input.float(2.5, "主信号基础阈值")
 scoreAddBase  = input.float(1.5, "次信号基础阈值")
+
+tf = timeframe.isweekly ? "W" : "D"
 
 // =====================
 // 📊 数据
 // =====================
-dailyClose = request.security(syminfo.tickerid, "D", close)
-rsiVal     = request.security(syminfo.tickerid, "D", ta.rsi(close, rsiLen))
-maFast  = request.security(syminfo.tickerid, "D", ta.ema(close, maFastLen))
-maShort    = request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
-maMid      = request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
-maLong     = request.security(syminfo.tickerid, "D", ta.sma(close, maLongLen))
-// 5周均线（日线图调用周线数据）
-ma5Week = request.security(syminfo.tickerid, "W", ta.sma(close, maWeekLen))
+dailyClose = request.security(syminfo.tickerid, tf, close)
+rsiVal     = request.security(syminfo.tickerid, tf, ta.rsi(close, rsiLen))
+maFast  = timeframe.isweekly ? request.security(syminfo.tickerid, "W", ta.sma(close, maFastWeekLen)) : request.security(syminfo.tickerid, "D", ta.ema(close, maFastLen))
+maShort    = timeframe.isweekly ? request.security(syminfo.tickerid, "W", ta.sma(close, maShortWeekLen)) : request.security(syminfo.tickerid, "D", ta.sma(close, maShortLen))
+maMid      = timeframe.isweekly ? request.security(syminfo.tickerid, "W", ta.sma(close, maMidWeekLen)) : request.security(syminfo.tickerid, "D", ta.sma(close, maMidLen))
+maLong     = request.security(syminfo.tickerid, tf, ta.sma(close, maLongLen))
 
 // ATR
 atrValue = ta.atr(atrLength)
-
-// 20日新高
-highestHigh = ta.highest(high, 20)
-// 价格10日新低
-lowestLow = ta.lowest(low, 10)
 
 devFromMA = (dailyClose - maShort) / maShort * 100
 dailyPct  = (dailyClose - dailyClose[1]) / dailyClose[1] * 100
@@ -108,8 +106,8 @@ score += bear ? 0.3 : 0.0
 // =====================
 // 🎯 信号
 // =====================
-condMain = score >= scoreMain
-condAdd  = score >= scoreAdd and score < scoreMain
+condMain = not timeframe.isweekly and score >= scoreMain
+condAdd  = not timeframe.isweekly and score >= scoreAdd and score < scoreMain
 
 // ATR止损值
 stopVal = close - (atrValue * atrMult)
@@ -125,6 +123,7 @@ rsiOverStrong = rsiVal >= 70
 // =====================
 // 🎨 输出
 // =====================
+
 plotshape(condMain,
      title="主信号",
      location=location.belowbar,
@@ -141,30 +140,26 @@ plotshape(condAdd,
      size=size.small,
      text="ADD")
 
-plot(maFast, "MA5", color=color.white)
-plot(ma5Week, "5周均线", color=color.purple, linewidth=2)
-//plot(maShort, "MA20", color=color.orange)
-//plot(maMid, "MA50", color=color.yellow)
+plot(maFast, "maFast", color=color.white)
+plot(maShort, "maShort", color=color.orange)
+plot(maMid, "maMid", color=color.yellow)
 //plot(maLong, "MA100", color=color.blue)
 
 plot(stopVal, title="ATR止损", color=color.blue)
 
-//plot(highestHigh, title="价格20日新高", color=color.green)
-//plot(lowestLow, "价格10日新低", color=color.red, linewidth=2)
-
-if rsiObserve
+if not timeframe.isweekly and rsiObserve
     label.new(bar_index, low - low * 0.02,
      str.tostring(rsiVal, "#.0"),
      textcolor=color.orange,
      style=label.style_none)
 
-if rsiOverStrong
+if not timeframe.isweekly and rsiOverStrong
     label.new(bar_index, low - low * 0.02,
          str.tostring(rsiVal, "#.0"),
          textcolor=color.red,
          style=label.style_none)
 
-if devFromMA50 > 0
+if not timeframe.isweekly and devFromMA50 > 0
     label.new(
          bar_index,
          high,
