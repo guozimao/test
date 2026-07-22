@@ -33,7 +33,7 @@ tradingView
 Pine
 --------------------------------------------------------
 //@version=5
-indicator("日线分析图", overlay=true)
+indicator("日线/周线分析图", overlay=true)
 
 // =====================
 // 📌 参数
