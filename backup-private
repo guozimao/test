@@ -30,6 +30,8 @@ hucyw14674
 
 tradingView
 
+需要结合两个indicators: Volumn 和 Distance From Moving Average
+
 Pine
 --------------------------------------------------------
 //@version=5
