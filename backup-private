@@ -147,7 +147,7 @@ plot(maShort, "maShort", color=color.orange)
 plot(maMid, "maMid", color=color.yellow)
 //plot(maLong, "MA100", color=color.blue)
 
-plot(stopVal, title="ATR止损", color=color.blue)
+plot(not timeframe.isweekly ? stopVal : na, title="ATR止损", color=color.blue)
 
 if not timeframe.isweekly and rsiObserve
     label.new(bar_index, low - low * 0.02,
@@ -169,6 +169,20 @@ if not timeframe.isweekly and devFromMA50 > 0
          textcolor=color.white,
          style=label.style_none)
 
+
+-------------------------------------------------------
+
+moomoo的一些指标
+
+EMA
+
+VWAP
+
+volumn
+
+ROVL Relative Volume
+
+MACD
 
 -------------------------------------------------------
 
