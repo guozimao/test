@@ -195,47 +195,52 @@ OBV On Balance Volume
 
 自建指标，MA Slope
      -------- 关键的代码 ---------
-     # Define basic indicator information (abbreviation, full name, display location, description)
-     indicator("MA10S", "MA10斜率", False, "计算10日均线的变化速度")
-     def function(n=10, period=5):
+     # Define basic indicator information
+     indicator("MASLP", "MA Slope", False, "均线斜率")
+     
+     
+     def function(length=130, ma_type="EMA"):
          """
-         计算MA斜率
+         Calculate MA slope
      
-         n:
-         均线周期，默认10日
+         length:
+         MA period
      
-         period:
-         与多少根K线之前比较，默认5日
-     
-         返回:
-         MA10的百分比斜率
+         ma_type:
+         EMA or SMA
          """
      
-         ma = close().sma(n)
+         if ma_type == "EMA":
+             out = close().ema(length)
+         else:
+             out = close().sma(length)
      
-         slope = (ma - ref(ma, period)) / ref(ma, period) * 100
+         # MA daily change rate
+         slp = (out - ref(out, 1)) / out * 100
      
-         return slope
+         return slp
      
      
      # When using this indicator, execute the following code
      if __name__ == "__main__":
      
-         # 用户参数
-         n = input_parameter("均线周期", 10)
-         period = input_parameter("比较周期", 5)
+         length = input_parameter("MA周期", 130)
      
-         # Calculate the indicator
-         result = function(n, period)
+         ma_type = input_parameter("MA类型", "EMA")
      
-         # Plot slope line
-         plot("MA10 Slope %", result, color=Color.hex("#007AE1"))
+         result = function(length, ma_type)
      
-         # Plot zero line
+     
+         # Plot slope
+         plot("MA Slope", result, color=Color.hex("#FFFFFF"))
+     
+         # Zero line
          plot("Zero", 0, color=Color.hex("#808080"))
      
-         # Output parameters for backtest
-         output_parameter(MA10_Slope=result)
+     
+         # Output parameter
+         output_parameter(MA_Slope=result)
+
 
 
 -------------------------------------------------------
