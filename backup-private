@@ -182,13 +182,17 @@ volumn
 
 ROVL Relative Volume
     -------- 关键的代码修改 ---------
-    color = ftool.iff(rvol_ >= 1, Color.hex("#26A69A"), Color.hex("#EF5350"))
+    color = ftool.iff(rvol_ >= 1, Color.hex("#EF5350"), Color.hex("#26A69A"))
 
     # Plot indicator lines
     plot("RVOL", rvol_, style=Line.histogram, color=color, linewidth=1)
 
+    plot_hline("基準", 1, color=Color.hex("#808080"))
+
 
 MACD
+    -------- 关键的代码修改 ---------
+    color_seq = iff(macd_ >= 0,  Color.hex("#EF5350"), Color.hex("#26A69A"))
 
 -------------------------------------------------------
 
