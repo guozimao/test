@@ -190,7 +190,7 @@ ROVL Relative Volume
     plot_hline("基準", 1, color=Color.hex("#808080"))
 
 
-MACD
+OBV On Balance Volume
 
 -------------------------------------------------------
 
