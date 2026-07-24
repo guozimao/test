@@ -192,6 +192,52 @@ ROVL Relative Volume
 
 OBV On Balance Volume
 
+
+自建指标，MA Slope
+     -------- 关键的代码 ---------
+     # Define basic indicator information (abbreviation, full name, display location, description)
+     indicator("MA10S", "MA10斜率", False, "计算10日均线的变化速度")
+     def function(n=10, period=5):
+         """
+         计算MA斜率
+     
+         n:
+         均线周期，默认10日
+     
+         period:
+         与多少根K线之前比较，默认5日
+     
+         返回:
+         MA10的百分比斜率
+         """
+     
+         ma = close().sma(n)
+     
+         slope = (ma - ref(ma, period)) / ref(ma, period) * 100
+     
+         return slope
+     
+     
+     # When using this indicator, execute the following code
+     if __name__ == "__main__":
+     
+         # 用户参数
+         n = input_parameter("均线周期", 10)
+         period = input_parameter("比较周期", 5)
+     
+         # Calculate the indicator
+         result = function(n, period)
+     
+         # Plot slope line
+         plot("MA10 Slope %", result, color=Color.hex("#007AE1"))
+     
+         # Plot zero line
+         plot("Zero", 0, color=Color.hex("#808080"))
+     
+         # Output parameters for backtest
+         output_parameter(MA10_Slope=result)
+
+
 -------------------------------------------------------
 
 
