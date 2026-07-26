@@ -203,54 +203,65 @@ OBV On Balance Volume
 RSI
 
 MA Slope（自建指标）
-     -------- 关键的代码 ---------
-     # Define basic indicator information
-     indicator("MASLP", "MA Slope", False, "均线斜率")
-     
-     
-     def function(length=130, ma_type="EMA"):
-         """
-         Calculate MA slope
-     
-         length:
-         MA period
-     
-         ma_type:
-         EMA or SMA
-         """
-     
-         if ma_type == "EMA":
-             out = close().ema(length)
-         else:
-             out = close().sma(length)
-     
-         # MA daily change rate
-         slp = (out - ref(out, 1)) / out * 100
-     
-         return slp
-     
-     
-     # When using this indicator, execute the following code
-     if __name__ == "__main__":
-     
-         length = input_parameter("MA周期", 130)
-     
-         ma_type = input_parameter("MA类型", "EMA")
-     
-         result = function(length, ma_type)
-     
-     
-         # Plot slope
-         plot("MA Slope", result, color=Color.hex("#FFFFFF"))
-     
-         # Zero line
-         plot("Zero", 0, color=Color.hex("#808080"))
-     
-     
-         # Output parameter
-         output_parameter(MA_Slope=result)
+     -------- 关键的代码 --------- start -----------
+# Define basic indicator information
+indicator("MASLP", "MA Slope", False, "均线斜率 Histogram")
 
 
+def function(length=20, ma_type="EMA"):
+
+    if ma_type == "EMA":
+        ma = close().ema(length)
+    else:
+        ma = close().sma(length)
+
+    # MA斜率(%)
+    slope = (ma - ref(ma, 1)) / ma * 100
+
+    return slope
+
+
+if __name__ == "__main__":
+
+    length = input_parameter("MA周期", 20)
+    ma_type = input_parameter("MA类型", "EMA")
+
+    slope = function(length, ma_type)
+
+    # 判断斜率是否增加
+    slopeUp = slope > ref(slope, 1)
+
+    # 四种颜色
+    color = ftool.iff(
+        slope >= 0,
+        ftool.iff(slopeUp,
+            Color.hex("#00C853"),     # 深绿：上涨加速
+            Color.hex("#81C784")      # 浅绿：上涨减速
+        ),
+        ftool.iff(slopeUp,
+            Color.hex("#EF9A9A"),     # 浅红：下跌减弱
+            Color.hex("#D50000")      # 深红：下跌加速
+        )
+    )
+
+    # Histogram
+    plot(
+        "MA Slope",
+        slope,
+        style=Line.histogram,
+        color=color
+    )
+
+    # Zero Line
+    plot(
+        "Zero",
+        0,
+        color=Color.hex("#808080")
+    )
+
+    output_parameter(MA_Slope=slope)
+
+    -------- 关键的代码 --------- end -----------
 
 -------------------------------------------------------
 
