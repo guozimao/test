@@ -189,25 +189,40 @@ VWAP
 volumn
 
 ROVL Relative Volume
-    -------- 关键的代码修改 ---------
+    -------- 关键的代码修改 ---------start-------
+    # Baseline
+    baseline = 1.0
+    
     rvolUp = rvol_ > ref(rvol_, 1)
     
     color = ftool.iff(
                   rvol_ >= 1, 
-                  ftool.iff(rvolUp,
-                                Color.hex("#00C853"),     # 深绿：上涨加速
-                                Color.hex("#81C784")      # 浅绿：上涨减速
-                  ), 
-                  ftool.iff(rvolUp,
-                                Color.hex("#D50000") ,     # 浅红：下跌减弱
-                                Color.hex("#EF9A9A")     # 深红：下跌加速
+                  ftool.iff(
+                                ref(rvol_, 1)  <  baseline,                # 从基准线下方到上方的时候
+                                Color.hex("#81C784"),     # 浅绿：初始值
+                                ftool.iff(
+                                                rvolUp,
+                                                Color.hex("#00C853"),     # 深绿：上涨加速
+                                                Color.hex("#81C784")      # 浅绿：上涨减速
+                                )
+                  ),
+                  ftool.iff(
+                                ref(rvol_, 1)  >=  baseline,                # 从基准线上方到下方的时候
+                                Color.hex("#D50000"),        # 深红：初始值
+                                ftool.iff(
+                                                rvolUp,
+                                                Color.hex("#D50000"),      # 深红：缩量减弱
+                                                Color.hex("#EF9A9A")      # 浅红：缩量加速
+                                )
                   )
         )
 
     # Plot indicator lines
     plot("RVOL", rvol_, style=Line.histogram, color=color, linewidth=1)
 
-    plot_hline("基準", 1, color=Color.hex("#808080"))
+    plot_hline("Baseline", baseline, color=Color.hex("#808080"))
+
+    -------- 关键的代码修改 ---------end-------
 
 
 OBV On Balance Volume
