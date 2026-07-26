@@ -190,7 +190,19 @@ volumn
 
 ROVL Relative Volume
     -------- 关键的代码修改 ---------
-    color = ftool.iff(rvol_ >= 1, Color.up, Color.down)
+    rvolUp = rvol_ > ref(rvol_, 1)
+    
+    color = ftool.iff(
+                  rvol_ >= 1, 
+                  ftool.iff(rvolUp,
+                                Color.hex("#00C853"),     # 深绿：上涨加速
+                                Color.hex("#81C784")      # 浅绿：上涨减速
+                  ), 
+                  ftool.iff(rvolUp,
+                                Color.hex("#EF9A9A"),     # 浅红：下跌减弱
+                                Color.hex("#D50000")      # 深红：下跌加速
+                  )
+        )
 
     # Plot indicator lines
     plot("RVOL", rvol_, style=Line.histogram, color=color, linewidth=1)
