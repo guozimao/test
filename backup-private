@@ -200,8 +200,9 @@ ROVL Relative Volume
 
 OBV On Balance Volume
 
+RSI
 
-自建指标，MA Slope
+MA Slope（自建指标）
      -------- 关键的代码 ---------
      # Define basic indicator information
      indicator("MASLP", "MA Slope", False, "均线斜率")
