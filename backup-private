@@ -199,8 +199,8 @@ ROVL Relative Volume
                                 Color.hex("#81C784")      # 浅绿：上涨减速
                   ), 
                   ftool.iff(rvolUp,
-                                Color.hex("#EF9A9A"),     # 浅红：下跌减弱
-                                Color.hex("#D50000")      # 深红：下跌加速
+                                Color.hex("#D50000") ,     # 浅红：下跌减弱
+                                Color.hex("#EF9A9A")     # 深红：下跌加速
                   )
         )
 
