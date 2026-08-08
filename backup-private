@@ -26,6 +26,10 @@ go2mzg@gmail.com
 hucyw14674
 *123@guozimaO*
 
+松戸市オンライン申請システム
+https://lgpos.task-asp.net/cu/122076/ea/residents/portal/home
+go2kakushimo@yahoo.co.jp
+
 -------------------------
 
 tradingView
@@ -294,17 +298,16 @@ if __name__ == "__main__":
 
 moomoo 市场过滤器
 
-New high  10 day
+MA Weekly Price Greater than MA5
+
+MA Weekly MA5 Greater than MA10
+
+MA Weekly MA10 Greater than MA20
 
 Volumn Ratio  1 ~ +∞
 
-Otions Volume  30k ~ +∞
-
 Otions OI  200k ~ +∞
 
-Heat Rankings  Heat Total
-
-MA Daily Price > MA5
 
 
 -------------------------------------------------------
