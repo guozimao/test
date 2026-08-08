@@ -296,6 +296,24 @@ if __name__ == "__main__":
 
 -------------------------------------------------------
 
+tradingView 市场过滤器
+
+Price: Above or equal Exponential moving average  5  1 week
+
+Exponential moving average: 5  1 week Above or equal Exponential moving average  10  1 week
+
+Exponential moving average: 10  1 week Above or equal Exponential moving average  20  1 week
+
+Earnings per share diluted growth %: Above Value 20
+
+Revenue growth %: Above Value 10
+
+Relative volume: 1 week Above Value 1
+
+Relative strength index: 14 1 day Below or equal Value 60(这个值可以任意改)
+
+-------------------------------------------------------
+
 moomoo 市场过滤器
 
 MA Weekly Price Greater than MA5
